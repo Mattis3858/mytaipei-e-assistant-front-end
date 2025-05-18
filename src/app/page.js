@@ -1,29 +1,39 @@
-// src/app/page.js
 "use client";
 
 import { useState } from "react";
 import Navbar from "../components/Navbar";
+import { createClient } from "@supabase/supabase-js";
 
-// 定義 API 的相對路徑
 const QA_SEARCH_ENDPOINT = "/qa/search";
+
+const BACKEND_API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL;
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+const supabase =
+  SUPABASE_URL && SUPABASE_ANON_KEY
+    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+
+if (!BACKEND_API_BASE_URL) {
+  console.error("環境變數 NEXT_PUBLIC_BACKEND_API_BASE_URL 未設定！");
+}
+if (!supabase) {
+  console.error(
+    "環境變數 NEXT_PUBLIC_SUPABASE_URL 或 NEXT_PUBLIC_SUPABASE_ANON_KEY 未設定，Supabase 客戶端未初始化！"
+  );
+}
 
 const Page = () => {
   const [searchText, setSearchText] = useState("");
   const [showResults, setShowResults] = useState(false);
-  const [searchResults, setSearchResults] = useState(null);
+  const [backendSearchResults, setBackendSearchResults] = useState(null);
+  const [detailedSourcesInfo, setDetailedSourcesInfo] = useState(null);
 
   const [selectedItem, setSelectedItem] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-
-  // 從環境變數獲取後端基礎網址
-  const BACKEND_API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_API_BASE_URL;
-
-  // 確保基礎網址已設定
-  if (!BACKEND_API_BASE_URL) {
-    console.error("環境變數 NEXT_PUBLIC_BACKEND_API_BASE_URL 未設定！");
-    // 在實際應用中，您可能需要更友善的錯誤處理
-  }
+  const [supabaseLoading, setSupabaseLoading] = useState(false);
 
   const handleSearch = async () => {
     console.log(searchText);
@@ -31,7 +41,6 @@ const Page = () => {
       return;
     }
 
-    // 檢查基礎網址是否存在
     if (!BACKEND_API_BASE_URL) {
       setError("後端 API 網址未配置。");
       return;
@@ -40,15 +49,14 @@ const Page = () => {
     setLoading(true);
     setError(null);
     setShowResults(true);
-    setSearchResults(null);
+    setBackendSearchResults(null);
+    setDetailedSourcesInfo(null);
     setSelectedItem(null);
 
-    // 構建完整的 API 網址
     const apiUrl = `${BACKEND_API_BASE_URL}${QA_SEARCH_ENDPOINT}`;
 
     try {
       const response = await fetch(apiUrl, {
-        // 使用構建好的 apiUrl
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,13 +72,39 @@ const Page = () => {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log(data);
-      setSearchResults(data);
+      const backendData = await response.json();
+      setBackendSearchResults(backendData);
+
+      if (
+        backendData &&
+        backendData.sources &&
+        backendData.sources.length > 0 &&
+        supabase
+      ) {
+        const sourceIds = backendData.sources.map((source) => source.id);
+        console.log("Source IDs:", sourceIds);
+        setSupabaseLoading(true);
+        try {
+          const { data: info, error: supabaseError } = await supabase
+            .from("info")
+            .select("id, topic, content, url, department, image")
+            .in("id", sourceIds);
+
+          if (supabaseError) {
+            console.error("Error fetching from Supabase:", supabaseError);
+          } else {
+            console.log("Supabase data:", info);
+            setDetailedSourcesInfo(info);
+          }
+        } finally {
+          setSupabaseLoading(false);
+        }
+      }
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("搜尋失敗，請稍後再試。");
-      setSearchResults(null);
+      setBackendSearchResults(null);
+      setDetailedSourcesInfo(null);
     } finally {
       setLoading(false);
     }
@@ -83,9 +117,11 @@ const Page = () => {
   const handleClearSearch = () => {
     setSearchText("");
     setShowResults(false);
-    setSearchResults(null);
+    setBackendSearchResults(null);
+    setDetailedSourcesInfo(null);
     setSelectedItem(null);
     setError(null);
+    setSupabaseLoading(false);
   };
 
   const personalizedAnnouncements = [
@@ -102,12 +138,16 @@ const Page = () => {
     setSelectedItem(null);
   };
 
+  const findDetailedInfo = (sourceId) => {
+    if (!detailedSourcesInfo) return null;
+    return detailedSourcesInfo.find((info) => info.id === sourceId);
+  };
+
   return (
     <div className="flex flex-col min-h-screen">
       <Navbar />
 
       <main className="flex-grow p-4">
-        <h2 className="text-2xl font-bold text-center mb-2">搜尋</h2>
         {!selectedItem && (
           <div className="mb-8 text-center">
             <input
@@ -125,9 +165,11 @@ const Page = () => {
             <button
               onClick={handleSearch}
               className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ${
-                loading ? "opacity-50 cursor-not-allowed" : ""
+                loading || supabaseLoading
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
               }`}
-              disabled={loading || !BACKEND_API_BASE_URL} // 如果網址未設定，也禁用按鈕
+              disabled={loading || supabaseLoading || !BACKEND_API_BASE_URL}
             >
               {loading ? "搜尋中..." : "搜尋"}
             </button>
@@ -143,11 +185,10 @@ const Page = () => {
                 測試
               </button>
             </div>
-            {/* 顯示 API 網址未設定的錯誤 */}
-            {!BACKEND_API_BASE_URL && (
+            {(!BACKEND_API_BASE_URL || !supabase) && (
               <p className="text-center text-red-600 mt-4">
-                錯誤：後端 API 網址環境變數 NEXT_PUBLIC_BACKEND_API_BASE_URL
-                未設定！請在 .env.local 中設定。
+                錯誤：後端 API 或 Supabase 網址/金鑰環境變數未設定！請檢查
+                .env.local 檔案。
               </p>
             )}
           </div>
@@ -162,7 +203,42 @@ const Page = () => {
               >
                 返回
               </button>
-              {selectedItem.url ? (
+              {console.log(selectedItem.topic)}
+              {selectedItem.content ? (
+                <>
+                  <h2 className="text-2xl font-bold mb-4">
+                    {selectedItem.topic}
+                  </h2>
+                  {selectedItem.image && (
+                    <img
+                      src={selectedItem.image}
+                      alt={selectedItem.topic}
+                      className="w-80 h-auto mb-4 rounded"
+                    />
+                  )}
+                  <p className="mb-2 whitespace-pre-wrap">
+                    {selectedItem.content}
+                  </p>
+                  {selectedItem.department && (
+                    <p className="text-sm text-gray-600 mb-2">
+                      部門: {selectedItem.department}
+                    </p>
+                  )}
+                  {selectedItem.url && (
+                    <p className="text-sm text-gray-600">
+                      網址:
+                      <a
+                        href={selectedItem.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline"
+                      >
+                        {selectedItem.url}
+                      </a>
+                    </p>
+                  )}
+                </>
+              ) : selectedItem.url ? (
                 <>
                   <h2 className="text-2xl font-bold mb-4">
                     {selectedItem.title}
@@ -170,7 +246,7 @@ const Page = () => {
                   <p className="mb-2">部門: {selectedItem.department}</p>
                   <p className="mb-2">分數: {selectedItem.score.toFixed(4)}</p>
                   <p>
-                    網址:{" "}
+                    網址:
                     <a
                       href={selectedItem.url}
                       target="_blank"
@@ -180,58 +256,77 @@ const Page = () => {
                       {selectedItem.url}
                     </a>
                   </p>
+                  <p className="text-red-500 mt-2">
+                    無詳細內容 (content) 可顯示。
+                  </p>
                 </>
               ) : (
-                <>
-                  <h2 className="text-2xl font-bold mb-4">
-                    {selectedItem.title}
-                  </h2>
-                  <p>{selectedItem.content}</p>
-                </>
+                <p className="text-red-500">無法顯示詳細資訊，項目結構異常。</p>
               )}
             </div>
           ) : showResults ? (
             <div className="searchResults">
               <h2 className="text-2xl font-bold text-center mb-6">搜尋結果</h2>
-              {loading ? (
+              {loading || supabaseLoading ? (
                 <p className="text-center">載入中...</p>
               ) : error ? (
                 <p className="text-center text-red-600">{error}</p>
-              ) : searchResults &&
-                searchResults.answer &&
-                searchResults.sources ? ( // 檢查 searchResults 及其內部結構
+              ) : backendSearchResults &&
+                backendSearchResults.answer &&
+                backendSearchResults.sources ? (
                 <>
                   <div className="mb-6 p-4 border border-dashed border-blue-500 bg-blue-50 rounded whitespace-pre-wrap">
                     <h3 className="text-xl font-semibold mb-2">相關資訊</h3>
-                    <p>{searchResults.answer}</p>
+                    <p>{backendSearchResults.answer}</p>
                   </div>
-                  {searchResults.sources.length > 0 ? ( // 檢查 sources 陣列是否為空
+                  {backendSearchResults.sources.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {searchResults.sources.map((source) => (
-                        <div
-                          key={source.id}
-                          className="p-4 border border-gray-300 rounded bg-white shadow cursor-pointer hover:bg-gray-100"
-                          onClick={() => handleItemClick(source)}
-                        >
-                          <h3 className="text-lg font-semibold mb-2">
-                            {source.title}
-                          </h3>
-                          <p className="text-sm text-gray-600">
-                            部門: {source.department}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            分數: {source.score.toFixed(4)}
-                          </p>
-                        </div>
-                      ))}
+                      {backendSearchResults.sources.map((source) => {
+                        const detailedInfo = findDetailedInfo(source.id);
+                        const itemToDisplay = detailedInfo || source;
+
+                        return (
+                          <div
+                            key={source.id}
+                            className="p-4 border border-gray-300 rounded bg-white shadow cursor-pointer hover:bg-gray-100"
+                            onClick={() => handleItemClick(itemToDisplay)}
+                          >
+                            <h3 className="text-lg font-semibold mb-2">
+                              {itemToDisplay.topic}
+                            </h3>
+                            {itemToDisplay.image && (
+                              <img
+                                src={itemToDisplay.image}
+                                alt={itemToDisplay.title}
+                                className="w-80 h-auto mb-2 rounded"
+                              />
+                            )}
+                            {itemToDisplay.content ? (
+                              <p className="text-sm text-gray-700 mb-2">
+                                {itemToDisplay.content.substring(0, 80)}...
+                              </p>
+                            ) : (
+                              <>
+                                <p className="text-sm text-gray-600">
+                                  部門: {itemToDisplay.department}
+                                </p>
+                                {itemToDisplay.score !== undefined && (
+                                  <p className="text-sm text-gray-600">
+                                    分數: {itemToDisplay.score.toFixed(4)}
+                                  </p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   ) : (
-                    <p className="text-center">沒有找到相關來源資料。</p> // sources 陣列為空時顯示
+                    <p className="text-center">沒有找到相關來源資料。</p>
                   )}
                 </>
               ) : (
-                // API 成功回傳但沒有 answer 或 sources 欄位 (不應發生，但作為防護)
-                <p className="text-center">搜尋結果結構異常。</p>
+                <p className="text-center">搜尋結果結構異常或為空。</p>
               )}
               <button
                 onClick={handleClearSearch}
