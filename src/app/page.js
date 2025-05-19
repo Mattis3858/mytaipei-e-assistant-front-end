@@ -35,17 +35,14 @@ const Page = () => {
   const [error, setError] = useState(null);
   const [supabaseLoading, setSupabaseLoading] = useState(false);
 
-  const handleSearch = async () => {
-    console.log(searchText);
-    if (!searchText.trim()) {
-      return;
-    }
-
+  const searchHandler = async (query) => {
+    if (!query.trim()) return;
     if (!BACKEND_API_BASE_URL) {
       setError("後端 API 網址未配置。");
       return;
     }
 
+    setSearchText(query);
     setLoading(true);
     setError(null);
     setShowResults(true);
@@ -58,14 +55,8 @@ const Page = () => {
     try {
       const response = await fetch(apiUrl, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          query: searchText,
-          top_k: 4,
-          min_score: 0,
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, top_k: 4, min_score: 0 }),
       });
 
       if (!response.ok) {
@@ -81,8 +72,7 @@ const Page = () => {
         backendData.sources.length > 0 &&
         supabase
       ) {
-        const sourceIds = backendData.sources.map((source) => source.id);
-        console.log("Source IDs:", sourceIds);
+        const sourceIds = backendData.sources.map((s) => s.id);
         setSupabaseLoading(true);
         try {
           const { data: info, error: supabaseError } = await supabase
@@ -90,18 +80,15 @@ const Page = () => {
             .select("id, topic, content, url, department, image")
             .in("id", sourceIds);
 
-          if (supabaseError) {
-            console.error("Error fetching from Supabase:", supabaseError);
-          } else {
-            console.log("Supabase data:", info);
-            setDetailedSourcesInfo(info);
-          }
+          if (supabaseError)
+            console.error("Supabase fetch error:", supabaseError);
+          else setDetailedSourcesInfo(info);
         } finally {
           setSupabaseLoading(false);
         }
       }
-    } catch (error) {
-      console.error("Error fetching data:", error);
+    } catch (err) {
+      console.error("Error fetching data:", err);
       setError("搜尋失敗，請稍後再試。");
       setBackendSearchResults(null);
       setDetailedSourcesInfo(null);
@@ -109,6 +96,7 @@ const Page = () => {
       setLoading(false);
     }
   };
+  const handleSearch = () => searchHandler(searchText);
 
   const handleInputChange = (event) => {
     setSearchText(event.target.value);
@@ -155,7 +143,7 @@ const Page = () => {
               placeholder="請輸入搜尋關鍵字..."
               value={searchText}
               onChange={handleInputChange}
-              className="p-2 mr-2 border border-gray-300 rounded"
+              className="w-100 p-2 mr-2 border border-gray-300 rounded"
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
                   handleSearch();
@@ -175,14 +163,23 @@ const Page = () => {
             </button>
 
             <div className="mt-4">
-              <button className="px-4 py-2 mr-2 border border-blue-500 text-blue-500 rounded hover:bg-blue-50">
-                測試
+              <button
+                onClick={() => searchHandler("生育補助")}
+                className="px-4 py-2 mr-2 border border-blue-500 text-blue-500 rounded hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200"
+              >
+                生育補助
               </button>
-              <button className="px-4 py-2 mr-2 border border-blue-500 text-blue-500 rounded hover:bg-blue-50">
-                測試
+              <button
+                onClick={() => searchHandler("低收入戶托育津貼")}
+                className="px-4 py-2 mr-2 border border-blue-500 text-blue-500 rounded hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200"
+              >
+                低收入戶托育津貼
               </button>
-              <button className="px-4 py-2 border border-blue-500 text-blue-500 rounded hover:bg-blue-50">
-                測試
+              <button
+                onClick={() => searchHandler("生育獎勵金")}
+                className="px-4 py-2 border border-blue-500 text-blue-500 rounded hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200"
+              >
+                生育獎勵金
               </button>
             </div>
             {(!BACKEND_API_BASE_URL || !supabase) && (
