@@ -133,7 +133,7 @@ const Page = () => {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar />
+      <Navbar onLogoClick={handleClearSearch} />
 
       <main className="flex-grow p-4">
         {!selectedItem && (
