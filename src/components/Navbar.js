@@ -2,9 +2,11 @@ import Link from "next/link";
 
 const Navbar = () => {
   return (
-    <nav className="flex items-center justify-between p-4 bg-gray-200">
+    <nav className="flex items-center justify-between p-4 bg-cyan-100">
       <div className="text-xl font-bold">
-        <Link href="/">My Taipei eAssistant</Link>
+        <Link href="/" className="">
+          My Taipei eAssistant
+        </Link>
       </div>
       <div className="text-xl">👤</div>
     </nav>

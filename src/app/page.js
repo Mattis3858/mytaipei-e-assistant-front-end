@@ -56,7 +56,7 @@ const Page = () => {
       const response = await fetch(apiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, top_k: 4, min_score: 0 }),
+        body: JSON.stringify({ query, top_k: 6, min_score: 0 }),
       });
 
       if (!response.ok) {
@@ -137,13 +137,13 @@ const Page = () => {
 
       <main className="flex-grow p-4">
         {!selectedItem && (
-          <div className="mb-8 text-center">
+          <div className="mt-2 mb-8 text-center ">
             <input
               type="text"
               placeholder="請輸入搜尋關鍵字..."
               value={searchText}
               onChange={handleInputChange}
-              className="w-100 p-2 mr-2 border border-gray-300 rounded"
+              className=" w-5/12 p-2 mr-2 border-cyan-100 border-4 rounded text-teal-600 font-medium"
               onKeyPress={(e) => {
                 if (e.key === "Enter") {
                   handleSearch();
@@ -152,7 +152,7 @@ const Page = () => {
             />
             <button
               onClick={handleSearch}
-              className={`px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ${
+              className={`px-4 py-2 font-bold bg-cyan-100 text-black rounded hover:bg-cyan-200 cursor-pointer transition-colors duration-200 ${
                 loading || supabaseLoading
                   ? "opacity-50 cursor-not-allowed"
                   : ""
@@ -165,19 +165,19 @@ const Page = () => {
             <div className="mt-4">
               <button
                 onClick={() => searchHandler("生育補助")}
-                className="px-4 py-2 mr-2 border border-blue-500 text-blue-500 rounded hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200"
+                className="px-4 py-2 mr-2 font-medium text-black rounded bg-cyan-100 hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200 cursor-pointer"
               >
                 生育補助
               </button>
               <button
                 onClick={() => searchHandler("低收入戶托育津貼")}
-                className="px-4 py-2 mr-2 border border-blue-500 text-blue-500 rounded hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200"
+                className="px-4 py-2 mr-2 font-medium text-black rounded bg-cyan-100 hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200 cursor-pointer"
               >
                 低收入戶托育津貼
               </button>
               <button
                 onClick={() => searchHandler("生育獎勵金")}
-                className="px-4 py-2 border border-blue-500 text-blue-500 rounded hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200"
+                className="px-4 py-2 mr-2 font-medium text-black rounded bg-cyan-100 hover:bg-gray-500 hover:text-white hover:border-white transition-colors duration-200 cursor-pointer"
               >
                 生育獎勵金
               </button>
@@ -327,21 +327,21 @@ const Page = () => {
               )}
               <button
                 onClick={handleClearSearch}
-                className="block mx-auto mt-8 px-6 py-3 bg-red-500 text-white rounded hover:bg-red-600"
+                className="block mx-auto mt-8 px-6 py-3 bg-red-400 text-white rounded hover:bg-red-600 cursor-pointer transition-colors duration-200"
               >
                 返回公告
               </button>
             </div>
           ) : (
             <div className="announcements">
-              <h2 className="text-2xl font-bold text-center mb-6">
+              <h2 className="text-2xl font-bold text-center mb-4">
                 個人化公告
               </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mx-40">
                 {personalizedAnnouncements.map((announcement) => (
                   <div
                     key={announcement.id}
-                    className="p-4 border border-gray-300 rounded bg-white shadow cursor-pointer hover:bg-gray-100"
+                    className="p-4 border border-gray-300 rounded text-black shadow cursor-pointer bg-gray-300 hover:bg-gray-200 transition-colors duration-200"
                     onClick={() => handleItemClick(announcement)}
                   >
                     <h3 className="text-lg font-semibold mb-2">
