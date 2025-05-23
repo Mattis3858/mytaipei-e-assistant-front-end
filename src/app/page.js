@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Navbar from "../components/Navbar";
-import SearchBar from "../components/Searchbar";
+import SearchBar from "../components/SearchBar";
 import SearchResults from "../components/SearchResults";
 import AnnouncementList from "../components/AnnouncementList";
 import DetailView from "../components/DetailView";
