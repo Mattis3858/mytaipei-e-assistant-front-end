@@ -1,6 +1,10 @@
-// hooks/useSearch.js
-import { useState, useCallback } from "react";
-import { QA_SEARCH_ENDPOINT, BACKEND_API_BASE_URL } from "../lib/constants";
+import { useState, useCallback, useEffect } from "react";
+import {
+  QA_SEARCH_ENDPOINT,
+  HYBRID_RECOMMENDATION_ENDPOINT,
+  BACKEND_API_BASE_URL,
+  DEFAULT_USER_ID,
+} from "../lib/constants";
 import supabase from "../lib/supabaseClient";
 
 const useSearch = () => {
@@ -12,6 +16,42 @@ const useSearch = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [supabaseLoading, setSupabaseLoading] = useState(false);
+
+  const [recommendationsRaw, setRecommendationsRaw] = useState(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(true);
+  const [recommendationError, setRecommendationError] = useState(null);
+  const [
+    detailedRecommendationSourcesInfo,
+    setDetailedRecommendationSourcesInfo,
+  ] = useState(null);
+
+  const fetchDetailedInfoFromSupabase = useCallback(
+    async (sourceIds, setLoadingState, setDetailedInfoState) => {
+      if (!supabase || sourceIds.length === 0) {
+        setLoadingState(false);
+        return [];
+      }
+
+      setLoadingState(true);
+      try {
+        const { data: info, error: supabaseError } = await supabase
+          .from("info")
+          .select("id, topic, content, url, department, image")
+          .in("id", sourceIds);
+
+        if (supabaseError) {
+          console.error("Supabase fetch error:", supabaseError);
+          return [];
+        } else {
+          setDetailedInfoState(info);
+          return info;
+        }
+      } finally {
+        setLoadingState(false);
+      }
+    },
+    []
+  );
 
   const searchHandler = useCallback(
     async (query) => {
@@ -47,26 +87,19 @@ const useSearch = () => {
         if (
           backendData &&
           backendData.sources &&
-          backendData.sources.length > 0 &&
-          supabase
+          backendData.sources.length > 0
         ) {
           const sourceIds = backendData.sources.map((s) => s.id);
-          setSupabaseLoading(true);
-          try {
-            const { data: info, error: supabaseError } = await supabase
-              .from("info")
-              .select("id, topic, content, url, department, image")
-              .in("id", sourceIds);
-
-            if (supabaseError)
-              console.error("Supabase fetch error:", supabaseError);
-            else setDetailedSourcesInfo(info);
-          } finally {
-            setSupabaseLoading(false);
-          }
+          await fetchDetailedInfoFromSupabase(
+            sourceIds,
+            setSupabaseLoading,
+            setDetailedSourcesInfo
+          );
+        } else {
+          setSupabaseLoading(false);
         }
       } catch (err) {
-        console.error("Error fetching data:", err);
+        console.error("Error fetching search data:", err);
         setError("搜尋失敗，請稍後再試。");
         setBackendSearchResults(null);
         setDetailedSourcesInfo(null);
@@ -74,7 +107,7 @@ const useSearch = () => {
         setLoading(false);
       }
     },
-    [] // 依賴項為空，表示這個函數只在組件首次渲染時創建一次
+    [fetchDetailedInfoFromSupabase]
   );
 
   const handleClearSearch = useCallback(() => {
@@ -85,6 +118,54 @@ const useSearch = () => {
     setError(null);
     setSupabaseLoading(false);
   }, []);
+
+  const fetchRecommendations = useCallback(async () => {
+    if (!BACKEND_API_BASE_URL) {
+      setRecommendationError("後端 API 網址未配置。");
+      setRecommendationLoading(false);
+      return;
+    }
+
+    setRecommendationLoading(true);
+    setRecommendationError(null);
+    try {
+      const userId = DEFAULT_USER_ID;
+      const apiUrl = `${BACKEND_API_BASE_URL}${HYBRID_RECOMMENDATION_ENDPOINT}?user_id=${userId}&lambda_=3&alpha=0.5&top_k=10`;
+
+      const response = await fetch(apiUrl, {
+        method: "GET",
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const rawRecommendationData = await response.json();
+      console.log(rawRecommendationData);
+      setRecommendationsRaw(rawRecommendationData);
+
+      if (rawRecommendationData && rawRecommendationData.length > 0) {
+        const sourceIds = rawRecommendationData.map((item) => item.id);
+        await fetchDetailedInfoFromSupabase(
+          sourceIds,
+          setSupabaseLoading,
+          setDetailedRecommendationSourcesInfo
+        );
+      } else {
+        setSupabaseLoading(false);
+      }
+    } catch (err) {
+      console.error("Error fetching recommendations:", err);
+      setRecommendationError("載入個人化公告失敗，請稍後再試。");
+      setRecommendationsRaw(null);
+      setDetailedRecommendationSourcesInfo(null);
+    } finally {
+      setRecommendationLoading(false);
+    }
+  }, [fetchDetailedInfoFromSupabase]);
+
+  useEffect(() => {
+    fetchRecommendations();
+  }, [fetchRecommendations]);
 
   return {
     searchText,
@@ -98,6 +179,10 @@ const useSearch = () => {
     supabaseLoading,
     searchHandler,
     handleClearSearch,
+    recommendationsRaw,
+    recommendationLoading,
+    recommendationError,
+    detailedRecommendationSourcesInfo,
   };
 };
 

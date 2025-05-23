@@ -1,4 +1,3 @@
-// app/page.js
 "use client";
 
 import { useState } from "react";
@@ -12,12 +11,11 @@ import {
   BACKEND_API_BASE_URL,
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
-} from "../lib/constants"; // 引入常數
+} from "../lib/constants";
 
 const Page = () => {
   const [selectedItem, setSelectedItem] = useState(null);
 
-  // 使用 custom hook 處理搜尋邏輯
   const {
     searchText,
     setSearchText,
@@ -30,6 +28,10 @@ const Page = () => {
     supabaseLoading,
     searchHandler,
     handleClearSearch,
+    recommendationsRaw,
+    recommendationLoading,
+    recommendationError,
+    detailedRecommendationSourcesInfo,
   } = useSearch();
 
   const handleItemClick = (item) => {
@@ -39,13 +41,6 @@ const Page = () => {
   const handleBackToList = () => {
     setSelectedItem(null);
   };
-
-  // 個人化公告資料，可以考慮移到一個常數檔案或從後端獲取
-  const personalizedAnnouncements = [
-    { id: 1, topic: "公告標題一", content: "這是第一則個人化公告的詳細內容。" },
-    { id: 2, topic: "公告標題二", content: "這是第二則個人化公告的詳細內容。" },
-    { id: 3, topic: "公告標題三", content: "這是第三則個人化公告的詳細內容。" },
-  ];
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -66,15 +61,7 @@ const Page = () => {
 
         <div className="pt-8 border-t border-gray-200">
           {selectedItem ? (
-            <DetailView
-              item={selectedItem}
-              onBackToList={handleBackToList}
-              findDetailedInfo={
-                showResults
-                  ? (id) => detailedSourcesInfo?.find((info) => info.id === id)
-                  : null
-              } // 只有在顯示搜尋結果時才傳遞 findDetailedInfo
-            />
+            <DetailView item={selectedItem} onBackToList={handleBackToList} />
           ) : showResults ? (
             <SearchResults
               loading={loading}
@@ -87,7 +74,10 @@ const Page = () => {
             />
           ) : (
             <AnnouncementList
-              announcements={personalizedAnnouncements}
+              recommendationsRaw={recommendationsRaw}
+              loading={recommendationLoading}
+              error={recommendationError}
+              detailedSourcesInfo={detailedRecommendationSourcesInfo}
               onItemClick={handleItemClick}
             />
           )}

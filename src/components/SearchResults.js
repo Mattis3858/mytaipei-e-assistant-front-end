@@ -1,5 +1,6 @@
 // components/SearchResults.js
 import React from "react";
+import Image from "next/image";
 
 const SearchResults = ({
   loading,
@@ -45,10 +46,12 @@ const SearchResults = ({
                       {itemToDisplay.topic || itemToDisplay.title}
                     </h3>
                     {itemToDisplay.image && (
-                      <img
+                      <Image
                         src={itemToDisplay.image}
                         alt={itemToDisplay.topic || itemToDisplay.title}
-                        className="w-80 h-auto mb-2 rounded"
+                        width={300}
+                        height={200}
+                        className="w-full h-40 object-cover mb-2 rounded"
                       />
                     )}
                     {itemToDisplay.content ? (
