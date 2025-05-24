@@ -1,7 +1,7 @@
-// components/SearchResults.js
-import React from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import supabase from "../lib/supabaseClient";
+import { BACKEND_API_BASE_URL } from "../lib/constants";
 
 const SearchResults = ({
   loading,
@@ -13,6 +13,9 @@ const SearchResults = ({
   onClearSearch,
   currentUserId,
 }) => {
+  const [summarizedAnswer, setSummarizedAnswer] = useState(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summarizeError, setSummarizeError] = useState(null);
   const findDetailedInfo = (sourceId) => {
     if (!detailedSourcesInfo) return null;
     return detailedSourcesInfo.find((info) => info.id === sourceId);
@@ -42,6 +45,52 @@ const SearchResults = ({
     }
   };
 
+  useEffect(() => {
+    const fetchSummary = async () => {
+      if (
+        backendSearchResults &&
+        backendSearchResults.answer &&
+        BACKEND_API_BASE_URL
+      ) {
+        setSummarizing(true);
+        setSummarizeError(null);
+        setSummarizedAnswer(null);
+        const summarizeApiUrl = `${BACKEND_API_BASE_URL}/tool/summarize`;
+
+        try {
+          const response = await fetch(summarizeApiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: backendSearchResults.answer,
+              user_id: currentUserId,
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const reader = response.body.getReader();
+          let receivedText = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            receivedText += new TextDecoder().decode(value);
+          }
+          setSummarizedAnswer(receivedText);
+        } catch (err) {
+          console.error("Error fetching summary:", err);
+          setSummarizeError("無法生成摘要，請稍後再試。");
+        } finally {
+          setSummarizing(false);
+        }
+      }
+    };
+
+    fetchSummary();
+  }, [backendSearchResults, currentUserId]);
+
   return (
     <div className="searchResults">
       <h2 className="text-2xl font-bold text-center mb-6">搜尋結果</h2>
@@ -55,7 +104,16 @@ const SearchResults = ({
         <>
           <div className="mb-6 p-4 border border-dashed border-blue-500 bg-blue-50 rounded whitespace-pre-wrap">
             <h3 className="text-xl font-semibold mb-2">相關資訊</h3>
-            <p>{backendSearchResults.answer}</p>
+            {console.log(summarizedAnswer)}
+            {summarizing ? (
+              <p>正在生成摘要...</p>
+            ) : summarizeError ? (
+              <p className="text-red-600">{summarizeError}</p>
+            ) : summarizedAnswer ? (
+              <p>{summarizedAnswer}</p>
+            ) : (
+              <p>{backendSearchResults.answer}</p>
+            )}
           </div>
           {backendSearchResults.sources.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -68,7 +126,7 @@ const SearchResults = ({
                     className="p-4 border border-gray-300 rounded bg-white shadow cursor-pointer hover:bg-gray-100"
                     onClick={() => handleItemClickAndLog(itemToDisplay)}
                   >
-                    {console.log(source.id)}
+                    {/* {console.log(source.id)} */}
                     <h3 className="text-lg font-semibold mb-2">
                       {itemToDisplay.topic || itemToDisplay.title}
                     </h3>
