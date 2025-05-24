@@ -1,6 +1,7 @@
 // components/SearchResults.js
 import React from "react";
 import Image from "next/image";
+import supabase from "../lib/supabaseClient";
 
 const SearchResults = ({
   loading,
@@ -10,10 +11,35 @@ const SearchResults = ({
   detailedSourcesInfo,
   onItemClick,
   onClearSearch,
+  currentUserId,
 }) => {
   const findDetailedInfo = (sourceId) => {
     if (!detailedSourcesInfo) return null;
     return detailedSourcesInfo.find((info) => info.id === sourceId);
+  };
+  const handleItemClickAndLog = async (item) => {
+    onItemClick(item);
+    if (supabase && currentUserId && item.id) {
+      try {
+        const { data, error } = await supabase.from("browse").insert([
+          {
+            user_id: currentUserId,
+            info_id: item.id,
+          },
+        ]);
+        if (error) {
+          console.error("Error inserting browse record:", error);
+        } else {
+          console.log("Browse record inserted successfully:", data);
+        }
+      } catch (e) {
+        console.error("Supabase insert failed:", e);
+      }
+    } else {
+      console.warn(
+        "Supabase client or user ID or item ID is missing. Cannot log browse."
+      );
+    }
   };
 
   return (
@@ -40,8 +66,9 @@ const SearchResults = ({
                   <div
                     key={source.id}
                     className="p-4 border border-gray-300 rounded bg-white shadow cursor-pointer hover:bg-gray-100"
-                    onClick={() => onItemClick(itemToDisplay)}
+                    onClick={() => handleItemClickAndLog(itemToDisplay)}
                   >
+                    {console.log(source.id)}
                     <h3 className="text-lg font-semibold mb-2">
                       {itemToDisplay.topic || itemToDisplay.title}
                     </h3>

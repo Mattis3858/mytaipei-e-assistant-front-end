@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import supabase from "../lib/supabaseClient";
 
 const AnnouncementList = ({
   recommendationsRaw,
@@ -7,6 +8,7 @@ const AnnouncementList = ({
   error,
   detailedSourcesInfo,
   onItemClick,
+  currentUserId,
 }) => {
   const combinedRecommendations = React.useMemo(() => {
     if (!recommendationsRaw || !detailedSourcesInfo) return [];
@@ -26,6 +28,32 @@ const AnnouncementList = ({
       .filter((item) => item.topic);
   }, [recommendationsRaw, detailedSourcesInfo]);
 
+  const handleItemClickAndLog = async (item) => {
+    onItemClick(item);
+
+    if (supabase && currentUserId && item.id) {
+      try {
+        const { data, error } = await supabase.from("browse").insert([
+          {
+            user_id: currentUserId,
+            info_id: item.id,
+          },
+        ]);
+        if (error) {
+          console.error("Error inserting browse record:", error);
+        } else {
+          console.log("Browse record inserted successfully:", data);
+        }
+      } catch (e) {
+        console.error("Supabase insert failed:", e);
+      }
+    } else {
+      console.warn(
+        "Supabase client or user ID or item ID is missing. Cannot log browse."
+      );
+    }
+  };
+
   return (
     <div className="announcements">
       <h2 className="text-2xl font-bold text-center mb-4">個人化公告</h2>
@@ -39,7 +67,7 @@ const AnnouncementList = ({
             <div
               key={item.id}
               className="p-4 border border-gray-300 rounded text-black shadow cursor-pointer bg-gray-300 hover:bg-gray-200 transition-colors duration-200"
-              onClick={() => onItemClick(item)}
+              onClick={() => handleItemClickAndLog(item)}
             >
               <h3 className="text-lg font-semibold mb-2">{item.topic}</h3>
               {item.image && (

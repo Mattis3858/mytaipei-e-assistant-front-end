@@ -11,6 +11,7 @@ import {
   BACKEND_API_BASE_URL,
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
+  DEFAULT_USER_ID,
 } from "../lib/constants";
 
 const Page = () => {
@@ -71,6 +72,7 @@ const Page = () => {
               detailedSourcesInfo={detailedSourcesInfo}
               onItemClick={handleItemClick}
               onClearSearch={handleClearSearch}
+              currentUserId={DEFAULT_USER_ID}
             />
           ) : (
             <AnnouncementList
@@ -79,6 +81,7 @@ const Page = () => {
               error={recommendationError}
               detailedSourcesInfo={detailedRecommendationSourcesInfo}
               onItemClick={handleItemClick}
+              currentUserId={DEFAULT_USER_ID}
             />
           )}
         </div>
