@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import supabase from "../lib/supabaseClient";
 import { BACKEND_API_BASE_URL } from "../lib/constants";
@@ -16,6 +16,10 @@ const SearchResults = ({
   const [summarizedAnswer, setSummarizedAnswer] = useState(null);
   const [summarizing, setSummarizing] = useState(false);
   const [summarizeError, setSummarizeError] = useState(null);
+  const audioContextRef = useRef(null);
+  const audioSourceRef = useRef(null);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [audioError, setAudioError] = useState(null);
 
   const findDetailedInfo = (sourceId) => {
     if (!detailedSourcesInfo) return null;
@@ -93,6 +97,99 @@ const SearchResults = ({
     fetchSummary();
   }, [backendSearchResults, currentUserId]);
 
+  const handlePlayAudio = async () => {
+    if (!summarizedAnswer) {
+      setAudioError("沒有可播放的摘要。");
+      return;
+    }
+
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext ||
+        window.webkitAudioContext)();
+    }
+
+    // Stop any currently playing audio
+    if (audioSourceRef.current) {
+      audioSourceRef.current.stop();
+      audioSourceRef.current.disconnect();
+    }
+
+    setIsPlayingAudio(true);
+    setAudioError(null);
+    const ttsApiUrl = `${BACKEND_API_BASE_URL}/tool/tts`;
+
+    try {
+      const response = await fetch(ttsApiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: summarizedAnswer,
+          user_id: currentUserId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioContextRef.current.decodeAudioData(
+        arrayBuffer
+      );
+
+      audioSourceRef.current = audioContextRef.current.createBufferSource();
+      audioSourceRef.current.buffer = audioBuffer;
+      audioSourceRef.current.connect(audioContextRef.current.destination);
+      audioSourceRef.current.start(0);
+
+      audioSourceRef.current.onended = () => {
+        setIsPlayingAudio(false);
+      };
+    } catch (err) {
+      console.error("Error playing audio:", err);
+      setAudioError("無法播放語音，請稍後再試。");
+      setIsPlayingAudio(false);
+    }
+  };
+  const SpeakerIcon = () => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      className={`w-6 h-6 inline-block ml-2 cursor-pointer ${
+        isPlayingAudio ? "text-blue-600" : "text-gray-600"
+      }`}
+      onClick={handlePlayAudio}
+    >
+      <path
+        fillRule="evenodd"
+        d="M9.375 9.75a.375.375 0 1 0 0-7.5.375.375 0 0 0 0 7.5ZM12 12.75a.75.75 0 0 0 .75-.75V6a.75.75 0 0 0-1.5 0v6a.75.75 0 0 0 .75.75Z"
+        clipRule="evenodd"
+      />
+      <path
+        fillRule="evenodd"
+        d="M9.375 2.25a.375.375 0 1 0 0 7.5.375.375 0 0 0 0-7.5Z"
+        clipRule="evenodd"
+      />
+      <path
+        fillRule="evenodd"
+        d="M21.05 12.25a.75.75 0 0 1 .75-.75h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75Zm-3.15 4.35a.75.75 0 0 1-.75-.75V7.5a.75.75 0 0 1 1.5 0v8.4a.75.75 0 0 1-.75.75ZM15 15.75a.75.75 0 0 0 .75-.75V8.25a.75.75 0 0 0-1.5 0v7.5a.75.75 0 0 0 .75.75Z"
+        clipRule="evenodd"
+      />
+      <path
+        fillRule="evenodd"
+        d="M9.375 2.25a.375.375 0 1 0 0 7.5.375.375 0 0 0 0-7.5Z"
+        clipRule="evenodd"
+      />
+      <path
+        fillRule="evenodd"
+        d="M12 12.75a.75.75 0 0 0 .75-.75V6a.75.75 0 0 0-1.5 0v6a.75.75 0 0 0 .75.75ZM21.05 12.25a.75.75 0 0 1 .75-.75h.75a.75.75 0 0 1 0 1.5h-.75a.75.75 0 0 1-.75-.75Zm-3.15 4.35a.75.75 0 0 1-.75-.75V7.5a.75.75 0 0 1 1.5 0v8.4a.75.75 0 0 1-.75.75ZM15 15.75a.75.75 0 0 0 .75-.75V8.25a.75.75 0 0 0-1.5 0v7.5a.75.75 0 0 0 .75.75ZM6 18.75a.75.75 0 0 0 .75-.75v-8.4a.75.75 0 0 0-1.5 0v8.4a.75.75 0 0 0 .75.75Z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
   return (
     <div className="searchResults">
       <h2 className="text-2xl font-bold text-center mb-6">搜尋結果</h2>
@@ -105,7 +202,10 @@ const SearchResults = ({
         backendSearchResults.sources ? (
         <>
           <div className="mb-6 p-4 border border-dashed border-blue-500 bg-blue-50 rounded whitespace-pre-wrap">
-            <h3 className="text-xl font-semibold mb-2">相關資訊摘要</h3>
+            <h3 className="text-xl font-semibold mb-2">
+              相關資訊摘要
+              {summarizedAnswer && !summarizing && <SpeakerIcon />}
+            </h3>
             {console.log(summarizedAnswer)}
             {summarizing ? (
               <p>正在生成摘要...</p>
