@@ -16,10 +16,12 @@ const SearchResults = ({
   const [summarizedAnswer, setSummarizedAnswer] = useState(null);
   const [summarizing, setSummarizing] = useState(false);
   const [summarizeError, setSummarizeError] = useState(null);
+
   const findDetailedInfo = (sourceId) => {
     if (!detailedSourcesInfo) return null;
     return detailedSourcesInfo.find((info) => info.id === sourceId);
   };
+
   const handleItemClickAndLog = async (item) => {
     onItemClick(item);
     if (supabase && currentUserId && item.id) {
@@ -103,7 +105,7 @@ const SearchResults = ({
         backendSearchResults.sources ? (
         <>
           <div className="mb-6 p-4 border border-dashed border-blue-500 bg-blue-50 rounded whitespace-pre-wrap">
-            <h3 className="text-xl font-semibold mb-2">相關資訊</h3>
+            <h3 className="text-xl font-semibold mb-2">相關資訊摘要</h3>
             {console.log(summarizedAnswer)}
             {summarizing ? (
               <p>正在生成摘要...</p>
@@ -115,6 +117,7 @@ const SearchResults = ({
               <p>{backendSearchResults.answer}</p>
             )}
           </div>
+
           {backendSearchResults.sources.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {backendSearchResults.sources.map((source) => {
@@ -156,6 +159,17 @@ const SearchResults = ({
                           </p>
                         )}
                       </>
+                    )}
+                    {itemToDisplay.url && (
+                      <a
+                        href={itemToDisplay.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:underline text-sm"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        查看原文
+                      </a>
                     )}
                   </div>
                 );
