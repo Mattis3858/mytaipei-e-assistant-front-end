@@ -62,7 +62,7 @@ const AnnouncementList = ({
       ) : error ? (
         <p className="text-center text-red-600">{error}</p>
       ) : combinedRecommendations && combinedRecommendations.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mx-40">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {combinedRecommendations.map((item) => (
             <div
               key={item.id}
