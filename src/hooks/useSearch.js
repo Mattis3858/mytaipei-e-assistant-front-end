@@ -130,7 +130,7 @@ const useSearch = () => {
     setRecommendationError(null);
     try {
       const userId = DEFAULT_USER_ID;
-      const apiUrl = `${BACKEND_API_BASE_URL}${HYBRID_RECOMMENDATION_ENDPOINT}?user_id=${userId}&lambda_=3&alpha=0.5&top_k=10`;
+      const apiUrl = `${BACKEND_API_BASE_URL}${HYBRID_RECOMMENDATION_ENDPOINT}?user_id=${userId}&lambda_=3&alpha=0.5&top_k=9`;
 
       const response = await fetch(apiUrl, {
         method: "GET",

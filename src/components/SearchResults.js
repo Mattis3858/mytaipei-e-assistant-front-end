@@ -53,6 +53,7 @@ const SearchResults = ({
 
   useEffect(() => {
     const fetchSummary = async () => {
+      console.log(backendSearchResults);
       if (
         backendSearchResults &&
         backendSearchResults.answer &&
